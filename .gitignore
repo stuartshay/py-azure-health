@@ -144,6 +144,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Azure Functions
+local.settings.json
+src/local.settings.json
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+.python_packages/
+
 # Spyder project settings
 .spyderproject
 .spyproject
