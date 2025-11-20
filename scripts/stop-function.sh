@@ -19,14 +19,14 @@ else
     echo "Stopping processes..."
     kill $FUNC_PIDS
     sleep 2
-    
+
     # Check if processes are still running and force kill if needed
     FUNC_PIDS=$(pgrep -f "func start" || true)
     if [ -n "$FUNC_PIDS" ]; then
         echo "Force stopping processes..."
         kill -9 $FUNC_PIDS
     fi
-    
+
     echo "Azure Functions stopped successfully."
 fi
 

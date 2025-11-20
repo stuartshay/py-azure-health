@@ -1,0 +1,112 @@
+{
+  "name": "Python Azure Functions Development",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": false,
+      "installOhMyZsh": false,
+      "upgradePackages": true,
+      "username": "vscode",
+      "uid": "1000",
+      "gid": "1000"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11",
+      "installTools": true
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "nodeGypDependencies": true,
+      "installYarnUsingApt": false
+    },
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "version": "latest",
+      "installBicep": true
+    },
+    "ghcr.io/devcontainers/features/dotnet:2": {
+      "version": "8.0",
+      "installUsingApt": true
+    },
+    "ghcr.io/prulloac/devcontainer-features/pre-commit:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest",
+      "installDirectlyFromGitHubRelease": true
+    },
+    "ghcr.io/azure/azure-dev/azd:0": {
+      "version": "latest"
+    },
+    "ghcr.io/jlaundry/devcontainer-features/azure-functions-core-tools:1": {
+      "version": "4"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "ms-vscode.azurecli",
+        "ms-azuretools.vscode-azureresourcegroups",
+        "EditorConfig.EditorConfig",
+        "ms-azuretools.vscode-bicep",
+        "azurite.azurite"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "black",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        },
+        "python.testing.pytestEnabled": true,
+        "azurite.silent": true,
+        "azurite.debug": false,
+        "azurite.location": "${workspaceFolder}/.azurite"
+      }
+    }
+  },
+  "forwardPorts": [
+    7071,
+    10000,
+    10001,
+    10002
+  ],
+  "portsAttributes": {
+    "7071": {
+      "label": "Azure Functions",
+      "onAutoForward": "notify"
+    },
+    "10000": {
+      "label": "Azurite Blob",
+      "onAutoForward": "silent"
+    },
+    "10001": {
+      "label": "Azurite Queue",
+      "onAutoForward": "silent"
+    },
+    "10002": {
+      "label": "Azurite Table",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteUser": "vscode"
+}
