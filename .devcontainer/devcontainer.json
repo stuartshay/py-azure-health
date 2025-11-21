@@ -44,6 +44,27 @@
     "ghcr.io/azure/azure-dev/azd:0": {
       "version": "latest"
     },
+    "ghcr.io/frntn/devcontainers-features/newman:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers-extra/features/uv:1": {
+      "version": "latest"
+    },
+    "ghcr.io/dhoeric/features/hadolint:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers-community/npm-features/prettier:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers-extra/features/shellcheck:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers-extra/features/actionlint:1": {
+      "version": "latest"
+    },
+    "ghcr.io/gvatsal60/dev-container-features/pre-commit:1": {
+      "version": "latest"
+    },
     "ghcr.io/jlaundry/devcontainer-features/azure-functions-core-tools:1": {
       "version": "4"
     }
@@ -52,6 +73,8 @@
     "vscode": {
       "extensions": [
         "ms-azuretools.vscode-azurefunctions",
+        "ms-azuretools.vscode-azureresourcegroups",
+        "ms-azuretools.vscode-bicep",
         "ms-python.python",
         "ms-python.vscode-pylance",
         "ms-python.black-formatter",
@@ -59,8 +82,10 @@
         "ms-vscode.azurecli",
         "ms-azuretools.vscode-azureresourcegroups",
         "EditorConfig.EditorConfig",
-        "ms-azuretools.vscode-bicep",
-        "azurite.azurite"
+        "azurite.azurite",
+
+        "saoudrizwan.claude-de",
+        "openai.chatgpt"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
