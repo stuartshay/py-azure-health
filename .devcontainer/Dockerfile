@@ -1,6 +1,6 @@
-# Use Python 3.11 slim image as base
-# Azure Functions for Python supports 3.9, 3.10, 3.11
-ARG VARIANT="3.11-slim-bookworm"
+# Use Python 3.14 slim image as base
+# Azure Functions for Python supports 3.9, 3.10, 3.11, 3.14
+ARG VARIANT="3.14-slim-bookworm"
 FROM python:${VARIANT}
 
 # Note: Most dependencies are installed via Dev Container Features:

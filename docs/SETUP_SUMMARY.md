@@ -12,8 +12,8 @@ This document summarizes the DevContainer setup for the Python Azure Health Func
    - Configures VS Code extensions and settings
    - Sets up port forwarding for Functions and Azurite
 
-2. **`.devcontainer/Dockerfile`**
-   - Based on Python 3.11 slim image
+2. **`.devcontainer/Dockerfile`** - Container image definition
+   - Based on Python 3.14 slim image
    - Minimal configuration (most work done by Features)
    - Documents feature usage
 
@@ -78,8 +78,8 @@ This document summarizes the DevContainer setup for the Python Azure Health Func
 
 | Aspect | PowerShell Project | Python Project |
 |--------|-------------------|----------------|
-| **Base Image** | `mcr.microsoft.com/powershell:latest` | `python:3.11-slim-bookworm` |
-| **Runtime** | PowerShell 7.4+ | Python 3.11 |
+| **Base Image** | `mcr.microsoft.com/powershell:latest` | `python:3.14-slim-bookworm` |
+| **Runtime** | PowerShell 7.4+ | Python 3.14 |
 | **Package Manager** | PowerShell Gallery | pip |
 | **Modules** | Az, Az.ResourceGraph, Az.Monitor, Pester, PSScriptAnalyzer | azure-functions, plus dev tools (black, flake8, pytest, mypy) |
 
@@ -96,8 +96,8 @@ This document summarizes the DevContainer setup for the Python Azure Health Func
 ### Shared Components
 
 Both projects use the same Dev Container Features:
-- ✅ common-utils (git, curl, wget, non-root user)
-- ✅ python (Python 3.10/3.11)
+- ✅ common-utils (Git, curl, wget, sudo)
+- ✅ python (Python 3.14)
 - ✅ node (Node.js 20/24)
 - ✅ azure-cli (with Bicep)
 - ✅ dotnet (.NET 8 SDK)
@@ -131,7 +131,7 @@ Dev Container Features are reusable, self-contained units of installation code t
 ```json
 "features": {
   "ghcr.io/devcontainers/features/python:1": {
-    "version": "3.11",
+    "version": "3.14",
     "installTools": true
   },
   "ghcr.io/devcontainers/features/azure-cli:1": {
@@ -217,11 +217,11 @@ Automatically installed extensions:
 After the container builds, verify everything works:
 
 ```bash
-# Check tool versions
-python --version          # Python 3.11.x
-func --version            # Azure Functions Core Tools 4.x
-az version                # Azure CLI
-pre-commit --version      # pre-commit 3.x
+# Verify tools
+```bash
+python --version          # Python 3.14.x
+pip --version
+node --version            # Node.js 20.x
 
 # Install dependencies
 pip install -r requirements.txt
@@ -248,7 +248,7 @@ curl "http://localhost:7071/api/hello?name=World"
 - ✅ Quick start guides
 
 ### Differences
-- 🔄 Python 3.11 instead of PowerShell 7.4
+- 🔄 Python 3.14 instead of PowerShell 7.4
 - 🔄 Black/Flake8/pytest instead of PSScriptAnalyzer/Pester
 - 🔄 pip/requirements.txt instead of PowerShell Gallery
 - 🔄 Python-specific VS Code extensions

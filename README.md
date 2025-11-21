@@ -23,11 +23,11 @@ The fastest way to get started is using the pre-configured DevContainer:
 7. Update `src/local.settings.json` with your subscription ID
 8. Start the function: `func start --script-root src`
 
-All prerequisites (Python 3.11, Azure Functions Core Tools, Azure CLI, and development tools) are automatically installed! See [Quick Start Guide](docs/QUICKSTART.md) for detailed instructions.
+All prerequisites (Python 3.14, Azure Functions Core Tools, Azure CLI, and development tools) are automatically installed! See [Quick Start Guide](docs/QUICKSTART.md) for detailed instructions.
 
 ## Prerequisites (Without DevContainer)
 
-- Python 3.11 or later
+- Python 3.14 or later
 - [Azure Functions Core Tools v4](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local)
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
 - [Visual Studio Code](https://code.visualstudio.com/) (recommended)
@@ -173,7 +173,7 @@ open htmlcov/index.html
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-    "FUNCTIONS_WORKER_RUNTIME_VERSION": "3.11",
+    "FUNCTIONS_WORKER_RUNTIME_VERSION": "3.14",
     "AZURE_SUBSCRIPTION_ID": "your-subscription-id-here",
     "APPLICATIONINSIGHTS_CONNECTION_STRING": ""
   }
@@ -184,7 +184,7 @@ open htmlcov/index.html
 
 The DevContainer provides a consistent development environment with:
 
-- Python 3.11
+- Python 3.14
 - Azure Functions Core Tools v4
 - Azure CLI with Bicep
 - Node.js 20 LTS

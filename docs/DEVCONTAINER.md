@@ -6,7 +6,7 @@ This directory contains the DevContainer configuration for the Python Azure Func
 
 The DevContainer includes all required tools and dependencies:
 
-- **Python 3.11** - Python runtime for Azure Functions
+- **Python 3.14** - Python runtime for Azure Functions
 - **.NET 8 SDK** - Required by Azure Functions Core Tools
 - **Azure Functions Core Tools v4** - Local function development and testing
 - **Azure CLI** - Azure resource management (with Bicep)
@@ -24,8 +24,8 @@ The DevContainer includes all required tools and dependencies:
 
 This DevContainer uses [Dev Container Features](https://containers.dev/features) for dependency management:
 
-- **common-utils** - Git, curl, wget, sudo, non-root user (vscode)
-- **python** - Python 3.11, pip, venv
+- **common-utils** - Essential utilities (git, curl, wget, etc.)
+- **python** - Python 3.14, pip, venv
 - **node** - Node.js 20 LTS
 - **azure-cli** - Azure CLI with Bicep
 - **dotnet** - .NET 8 SDK

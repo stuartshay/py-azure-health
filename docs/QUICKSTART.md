@@ -18,7 +18,9 @@ This guide will help you get started with the Python Azure Health Functions proj
 4. Wait for the container to build (first time takes 5-10 minutes)
 
 All tools are automatically installed:
-- ✅ Python 3.11
+### What's Included
+
+- ✅ Python 3.14
 - ✅ Azure Functions Core Tools v4
 - ✅ Azure CLI with Bicep
 - ✅ Node.js 20 LTS

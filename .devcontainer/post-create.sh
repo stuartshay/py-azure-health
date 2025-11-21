@@ -8,7 +8,7 @@ echo "=================================="
 
 # Note: Base tools installed via Dev Container Features:
 # - common-utils: git, curl, wget, sudo, non-root user
-# - python: Python 3.11, pip, venv
+# - python: Python 3.14, pip, venv
 # - node: Node.js 20 (via nvm)
 # - azure-cli: Azure CLI with Bicep
 # - dotnet: .NET 8 SDK
@@ -176,7 +176,7 @@ if [ ! -f "src/local.settings.json" ]; then
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-    "FUNCTIONS_WORKER_RUNTIME_VERSION": "3.11",
+    "FUNCTIONS_WORKER_RUNTIME_VERSION": "3.14",
     "AZURE_SUBSCRIPTION_ID": "your-subscription-id-here",
     "APPLICATIONINSIGHTS_CONNECTION_STRING": ""
   }

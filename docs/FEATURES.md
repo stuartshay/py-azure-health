@@ -32,14 +32,15 @@ Dev Container Features are self-contained units of installation code and configu
 - Common utilities installed and maintained
 
 ### 2. Python (`ghcr.io/devcontainers/features/python:1`)
-**Provides:**
-- Python 3.11 runtime
-- pip, venv, and Python tools
+**Purpose:** Installs Python runtime and development tools.
+
+- Python 3.14 runtime
+- pip (Python package manager)
 
 **Configuration:**
 ```json
 {
-  "version": "3.11",
+  "version": "3.14",
   "installTools": true
 }
 ```
@@ -225,22 +226,11 @@ Dev Container Features are self-contained units of installation code and configu
 After building the container, verify all tools are available:
 
 ```bash
-# Check versions
-python --version         # Python 3.11.x
-pip --version           # pip 24.x.x
-node --version          # Node.js 20.x.x
-npm --version           # npm 10.x.x
-git --version           # Git 2.x.x
-az version              # Azure CLI
-dotnet --version        # .NET 8.0.x
-func --version          # Azure Functions Core Tools 4.x
-azd version             # Azure Developer CLI
-gh --version            # GitHub CLI
-pre-commit --version    # pre-commit 3.x.x
-
-# Check user
-whoami                  # should be 'vscode'
-sudo -v                 # should work without password
+# Verify installation
+```bash
+python --version         # Python 3.14.x
+pip --version
+node --version           # Node.js 20.x
 ```
 
 ## Migration Path for Other Projects
