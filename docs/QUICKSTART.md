@@ -163,9 +163,9 @@ Edit `src/function_app.py` and add a new route:
 @app.route(route="myfunction")
 def my_function(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing request...')
-    
+
     # Your logic here
-    
+
     return func.HttpResponse(
         "Success!",
         status_code=200
@@ -178,7 +178,7 @@ def my_function(req: func.HttpRequest) -> func.HttpResponse:
 @app.schedule(schedule="0 */5 * * * *", arg_name="myTimer", run_on_startup=False)
 def timer_function(myTimer: func.TimerRequest) -> None:
     logging.info('Timer trigger function executed.')
-    
+
     # Your logic here
 ```
 
@@ -307,4 +307,3 @@ docker logs <container-id>                   # View container logs
 - [Python Developer Guide](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-python)
 - [Azurite Documentation](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite)
 - [VS Code DevContainers](https://code.visualstudio.com/docs/devcontainers/containers)
-

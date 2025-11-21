@@ -255,4 +255,3 @@ To adopt this pattern in other projects:
 - [Dev Container Features Specification](https://containers.dev/implementors/features/)
 - [Official Feature Repository](https://github.com/devcontainers/features)
 - [Community Feature Directory](https://containers.dev/collections)
-

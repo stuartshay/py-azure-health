@@ -118,6 +118,20 @@ mkdir -p "${WORKSPACE_DIR}/.azurite"
 echo "✅ Azurite directory ready at ${WORKSPACE_DIR}/.azurite"
 echo "ℹ️  Start Azurite via Command Palette: 'Azurite: Start' or use the status bar"
 
+# Create Python virtual environment for Azure Functions
+echo "Creating Python virtual environment (.venv)..."
+WORKSPACE_DIR="${WORKSPACE_DIR:-$(pwd)}"
+if [ ! -d "${WORKSPACE_DIR}/.venv" ]; then
+    python -m venv "${WORKSPACE_DIR}/.venv"
+    echo "✅ Created .venv virtual environment"
+else
+    echo "✅ .venv virtual environment already exists"
+fi
+
+# Activate virtual environment
+source "${WORKSPACE_DIR}/.venv/bin/activate"
+echo "✅ Activated .venv virtual environment"
+
 # Upgrade pip and install common Python development tools
 echo "Upgrading pip and installing Python development tools..."
 python -m pip install --upgrade pip setuptools wheel
@@ -188,11 +202,39 @@ else
     echo "✅ src/local.settings.json already exists"
 fi
 
-echo "=================================="
+# Configure zsh as default shell
+echo "Configuring zsh shell..."
+if command -v zsh &> /dev/null; then
+    # Copy custom .zshrc with agnoster theme and Azure prompt
+    echo "Copying custom .zshrc configuration..."
+    cp "${WORKSPACE_DIR}/.devcontainer/.zshrc" "$HOME/.zshrc"
+    echo "✅ Configured zsh with agnoster theme and Azure subscription prompt"
+else
+    echo "⚠️  zsh not found, skipping zsh configuration"
+fi
+
+# Also add to .bashrc for bash users
+if [ -f "$HOME/.bashrc" ]; then
+    if ! grep -q "# Auto-activate Python venv" "$HOME/.bashrc"; then
+        cat >> "$HOME/.bashrc" <<'EOF'
+
+# Auto-activate Python venv for Azure Functions
+if [ -f "/workspaces/py-azure-health/.venv/bin/activate" ]; then
+    source "/workspaces/py-azure-health/.venv/bin/activate"
+fi
+EOF
+    fi
+    echo "✅ Configured bash with virtual environment auto-activation"
+fi
+
+echo "================================="
 echo "DevContainer setup complete! 🎉"
-echo "=================================="
+echo "================================="
 echo ""
-echo "Pre-commit hooks are installed and will run automatically on commits."
+echo "✅ Python virtual environment (.venv) created and configured"
+echo "✅ Shell configured to auto-activate virtual environment"
+echo "✅ Pre-commit hooks installed and will run automatically on commits"
+echo ""
 echo "To skip pre-commit hooks: git commit --no-verify"
 echo "To run hooks manually: pre-commit run --all-files"
 echo ""

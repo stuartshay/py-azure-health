@@ -72,4 +72,3 @@ Documentation should be updated when:
 - Configuration changes are made
 - Deployment procedures are modified
 - Troubleshooting steps are discovered
-

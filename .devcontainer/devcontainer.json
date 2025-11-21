@@ -5,8 +5,8 @@
   },
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": false,
-      "installOhMyZsh": false,
+      "installZsh": true,
+      "installOhMyZsh": true,
       "upgradePackages": true,
       "username": "vscode",
       "uid": "1000",
@@ -26,7 +26,7 @@
       "installBicep": true
     },
     "ghcr.io/devcontainers/features/dotnet:2": {
-      "version": "8.0",
+      "version": "10.0",
       "installUsingApt": true
     },
     "ghcr.io/prulloac/devcontainer-features/pre-commit:1": {
@@ -44,9 +44,6 @@
     "ghcr.io/azure/azure-dev/azd:0": {
       "version": "latest"
     },
-    "ghcr.io/frntn/devcontainers-features/newman:1": {
-      "version": "latest"
-    },
     "ghcr.io/devcontainers-extra/features/uv:1": {
       "version": "latest"
     },
@@ -60,9 +57,6 @@
       "version": "latest"
     },
     "ghcr.io/devcontainers-extra/features/actionlint:1": {
-      "version": "latest"
-    },
-    "ghcr.io/gvatsal60/dev-container-features/pre-commit:1": {
       "version": "latest"
     },
     "ghcr.io/jlaundry/devcontainer-features/azure-functions-core-tools:1": {
@@ -88,7 +82,7 @@
         "openai.chatgpt"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.defaultProfile.linux": "zsh",
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": false,
