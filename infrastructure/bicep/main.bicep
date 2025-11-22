@@ -9,7 +9,7 @@ param appName string = 'azure-health'
 
 @description('Tags to apply to all resources')
 param tags object = {
-  application: 'py-azure-health'
+  project: 'py-azure-health'
   environment: environment
   managedBy: 'bicep'
 }

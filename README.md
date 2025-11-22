@@ -1,5 +1,8 @@
 # Python Azure Health Functions
 
+[![Infrastructure Deploy](https://github.com/stuartshay/py-azure-health/actions/workflows/infrastructure-deploy.yml/badge.svg)](https://github.com/stuartshay/py-azure-health/actions/workflows/infrastructure-deploy.yml)
+
+
 A Python-based Azure Functions project for health monitoring and API endpoints.
 
 ## Features
