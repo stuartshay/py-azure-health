@@ -50,6 +50,12 @@
     "ghcr.io/dhoeric/features/hadolint:1": {
       "version": "latest"
     },
+    "ghcr.io/szkiba/devcontainer-features/bats:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers-extra/features/act:1": {
+      "version": "latest"
+    },
     "ghcr.io/devcontainers-community/npm-features/prettier:1": {
       "version": "latest"
     },
@@ -79,6 +85,7 @@
         "azurite.azurite",
 
         "saoudrizwan.claude-de",
+        "google.geminicodeassist",
         "openai.chatgpt"
       ],
       "settings": {

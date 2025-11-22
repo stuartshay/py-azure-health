@@ -20,11 +20,21 @@ var functionAppName = 'func-${appName}-${environment}-${uniqueSuffix}'
 var storageAccountName = 'st${replace(appName, '-', '')}${environment}${take(uniqueSuffix, 6)}'
 var appInsightsName = 'appi-${appName}-${environment}'
 var logAnalyticsName = 'log-${appName}-${environment}'
+var appServicePlanName = 'plan-${appName}-${environment}'
 
-// Reference existing App Service Plan
-resource existingAppServicePlan 'Microsoft.Web/serverfarms@2025-03-01' existing = {
-  name: 'azurehealth-plan-dev'
-  scope: resourceGroup()
+// App Service Plan for Function App
+resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
+  name: appServicePlanName
+  location: location
+  tags: tags
+  sku: {
+    name: environment == 'prod' ? 'P1v3' : 'B1'
+    tier: environment == 'prod' ? 'PremiumV3' : 'Basic'
+  }
+  kind: 'linux'
+  properties: {
+    reserved: true
+  }
 }
 
 // Storage Account for Function App
@@ -64,7 +74,7 @@ module functionApp './modules/function-app.bicep' = {
   params: {
     functionAppName: functionAppName
     location: location
-    appServicePlanId: existingAppServicePlan.id
+    appServicePlanId: appServicePlan.id
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: appInsights.outputs.connectionString
     appInsightsInstrumentationKey: appInsights.outputs.instrumentationKey
@@ -78,3 +88,5 @@ output functionAppHostName string = functionApp.outputs.functionAppHostName
 output storageAccountName string = storage.outputs.storageAccountName
 output appInsightsName string = appInsights.outputs.appInsightsName
 output logAnalyticsWorkspaceName string = logAnalytics.outputs.workspaceName
+output appServicePlanName string = appServicePlan.name
+output appServicePlanId string = appServicePlan.id

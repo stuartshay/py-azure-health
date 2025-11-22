@@ -20,7 +20,7 @@ param appInsightsInstrumentationKey string
 param tags object
 
 @description('Python version')
-param pythonVersion string = '3.11'
+param pythonVersion string = '3.14'
 
 // Reference existing storage account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' existing = {

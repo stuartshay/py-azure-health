@@ -79,26 +79,87 @@ jobs:
             echo "has_errors=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check Azure Policy Compliance
+        id: policy
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+          echo "🔒 Checking Azure Policy compliance for resource group..."
+
+          # Source the policy query utilities
+          source scripts/ci/policy-query.sh
+
+          # Generate comprehensive policy report
+          generate_policy_report "${{ env.AZURE_RESOURCE_GROUP }}" > policy-report.md
+
+          # Get policy assignments with compliance for counting
+          POLICY_DATA=$(get_policy_assignments_with_compliance "${{ env.AZURE_RESOURCE_GROUP }}")
+
+          # Count compliance states
+          NON_COMPLIANT=$(echo "$POLICY_DATA" | jq '[.[] | select(.complianceState=="NonCompliant")] | length' 2>/dev/null || echo "0")
+          COMPLIANT=$(echo "$POLICY_DATA" | jq '[.[] | select(.complianceState=="Compliant")] | length' 2>/dev/null || echo "0")
+
+          # Strip whitespace
+          NON_COMPLIANT=$(echo "${NON_COMPLIANT}" | tr -d '[:space:]')
+          COMPLIANT=$(echo "${COMPLIANT}" | tr -d '[:space:]')
+
+          # Default to 0 if empty
+          NON_COMPLIANT=${NON_COMPLIANT:-0}
+          COMPLIANT=${COMPLIANT:-0}
+
+          echo "non_compliant=${NON_COMPLIANT}" >> "$GITHUB_OUTPUT"
+          echo "compliant=${COMPLIANT}" >> "$GITHUB_OUTPUT"
+
+          # Save raw policy data for artifacts
+          echo "$POLICY_DATA" > policy-compliance.json
+
+          if [ "$NON_COMPLIANT" -gt "0" ]; then
+            echo "policy_issues=true" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Found ${NON_COMPLIANT} non-compliant policy assignments"
+          else
+            echo "policy_issues=false" >> "$GITHUB_OUTPUT"
+            echo "✅ All policy assignments are compliant"
+          fi
+
       - name: Parse What-If results
         id: parse
         if: success() || failure()
         run: |
           if [ -f whatif-output.txt ]; then
-            # Count changes
-            CREATE_COUNT=$(grep -c "Create" whatif-output.txt || echo "0")
-            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt || echo "0")
-            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt || echo "0")
-            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt || echo "0")
+            # Count changes - ensure we get numeric values and strip whitespace
+            CREATE_COUNT=$(grep -c "Create" whatif-output.txt 2>/dev/null || echo "0")
+            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt 2>/dev/null || echo "0")
+            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt 2>/dev/null || echo "0")
+            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt 2>/dev/null || echo "0")
 
-            echo "create_count=$CREATE_COUNT" >> $GITHUB_OUTPUT
-            echo "modify_count=$MODIFY_COUNT" >> $GITHUB_OUTPUT
-            echo "delete_count=$DELETE_COUNT" >> $GITHUB_OUTPUT
-            echo "ignore_count=$IGNORE_COUNT" >> $GITHUB_OUTPUT
+            # Strip whitespace and ensure we have clean integers
+            CREATE_COUNT=$(echo "${CREATE_COUNT}" | tr -d '[:space:]')
+            MODIFY_COUNT=$(echo "${MODIFY_COUNT}" | tr -d '[:space:]')
+            DELETE_COUNT=$(echo "${DELETE_COUNT}" | tr -d '[:space:]')
+            IGNORE_COUNT=$(echo "${IGNORE_COUNT}" | tr -d '[:space:]')
+
+            # Default to 0 if empty
+            CREATE_COUNT=${CREATE_COUNT:-0}
+            MODIFY_COUNT=${MODIFY_COUNT:-0}
+            DELETE_COUNT=${DELETE_COUNT:-0}
+            IGNORE_COUNT=${IGNORE_COUNT:-0}
+
+            echo "create_count=${CREATE_COUNT}" >> "$GITHUB_OUTPUT"
+            echo "modify_count=${MODIFY_COUNT}" >> "$GITHUB_OUTPUT"
+            echo "delete_count=${DELETE_COUNT}" >> "$GITHUB_OUTPUT"
+            echo "ignore_count=${IGNORE_COUNT}" >> "$GITHUB_OUTPUT"
 
             TOTAL_CHANGES=$((CREATE_COUNT + MODIFY_COUNT + DELETE_COUNT))
-            echo "total_changes=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
+            echo "total_changes=${TOTAL_CHANGES}" >> "$GITHUB_OUTPUT"
 
-            echo "📊 Changes detected: $CREATE_COUNT create, $MODIFY_COUNT modify, $DELETE_COUNT delete"
+            echo "📊 Changes detected: ${CREATE_COUNT} create, ${MODIFY_COUNT} modify, ${DELETE_COUNT} delete"
+          else
+            # File doesn't exist, set defaults
+            echo "create_count=0" >> "$GITHUB_OUTPUT"
+            echo "modify_count=0" >> "$GITHUB_OUTPUT"
+            echo "delete_count=0" >> "$GITHUB_OUTPUT"
+            echo "ignore_count=0" >> "$GITHUB_OUTPUT"
+            echo "total_changes=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create PR comment
@@ -115,6 +176,9 @@ jobs:
             const deleteCount = '${{ steps.parse.outputs.delete_count }}';
             const totalChanges = '${{ steps.parse.outputs.total_changes }}';
             const hasErrors = '${{ steps.whatif.outputs.has_errors }}';
+            const nonCompliant = '${{ steps.policy.outputs.non_compliant }}';
+            const compliant = '${{ steps.policy.outputs.compliant }}';
+            const policyIssues = '${{ steps.policy.outputs.policy_issues }}';
 
             let icon = '✅';
             let status = 'No infrastructure changes detected';
@@ -125,6 +189,29 @@ jobs:
             } else if (totalChanges > 0) {
               icon = '⚠️';
               status = `${totalChanges} infrastructure change(s) detected`;
+            }
+
+            // Read policy report if it exists
+            let policySection = '';
+            if (fs.existsSync('policy-report.md')) {
+              const policyReport = fs.readFileSync('policy-report.md', 'utf8');
+              const totalPolicies = parseInt(compliant || '0') + parseInt(nonCompliant || '0');
+
+              policySection = `
+            ### 🔒 Policy Compliance Preview
+
+            This preview shows current policy assignments and potential compliance issues.
+
+            **Dev Environment**
+
+            | Status | Count |
+            | --- | --- |
+            | ✅ Compliant | ${compliant} |
+            | ❌ Non-Compliant | ${nonCompliant} |
+            | 📋 Total Assignments | ${totalPolicies} |
+
+            ${policyReport}
+            `;
             }
 
             const comment = `## ${icon} Infrastructure What-If Analysis
@@ -140,6 +227,8 @@ jobs:
             | ❌ Delete | ${deleteCount} |
             | ⏭️ Ignore | ${{ steps.parse.outputs.ignore_count }} |
 
+            ${policySection}
+
             <details>
             <summary>View detailed changes</summary>
 
@@ -151,6 +240,7 @@ jobs:
 
             ${hasErrors === 'true' ? '⚠️ **Please review the errors above before merging.**' : ''}
             ${totalChanges > 0 ? '⚠️ **Review changes carefully before deploying to production.**' : ''}
+            ${policyIssues === 'true' ? '⚠️ **Policy compliance issues detected. Please remediate before deployment.**' : ''}
 
             ---
             *Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
@@ -199,6 +289,14 @@ jobs:
           echo "| Total Changes | ${{ steps.parse.outputs.total_changes }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
+          echo "### 🔒 Policy Compliance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Compliant Resources | ${{ steps.policy.outputs.compliant }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Non-Compliant Resources | ${{ steps.policy.outputs.non_compliant }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
           if [ "${{ steps.whatif.outputs.has_errors }}" = "true" ]; then
             echo "❌ **What-If analysis completed with errors. Review the logs above.**" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.parse.outputs.total_changes }}" -gt "0" ]; then
@@ -207,10 +305,26 @@ jobs:
             echo "✅ **No infrastructure changes detected.**" >> $GITHUB_STEP_SUMMARY
           fi
 
+          if [ "${{ steps.policy.outputs.policy_issues }}" = "true" ]; then
+            echo "⚠️ **Policy compliance issues detected. Review and remediate before deployment.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All resources are policy compliant.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Upload What-If output
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: whatif-output-${{ github.run_id }}
           path: whatif-output.txt
+          retention-days: 30
+
+      - name: Upload Policy Compliance Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-compliance-${{ github.run_id }}
+          path: |
+            policy-compliance.json
+            policy-report.md
           retention-days: 30

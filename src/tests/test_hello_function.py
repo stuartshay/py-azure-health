@@ -8,7 +8,7 @@ import azure.functions as func
 def test_hello_function_with_name():
     """Test hello function with name parameter."""
     # Import the function
-    from function_app import hello
+    from function_app import hello_world
 
     # Create a mock request with name parameter
     req = func.HttpRequest(
@@ -16,7 +16,7 @@ def test_hello_function_with_name():
     )  # noqa: E501
 
     # Call the function
-    response = hello(req)
+    response = hello_world(req)
 
     # Assert response
     assert response.status_code == 200
@@ -25,13 +25,13 @@ def test_hello_function_with_name():
 
 def test_hello_function_without_name():
     """Test hello function without name parameter."""
-    from function_app import hello
+    from function_app import hello_world
 
     # Create a mock request without name parameter
     req = func.HttpRequest(method="GET", body=b"", url="/api/hello", params={})
 
     # Call the function
-    response = hello(req)
+    response = hello_world(req)
 
     # Assert response
     assert response.status_code == 200
@@ -40,7 +40,7 @@ def test_hello_function_without_name():
 
 def test_hello_function_with_body():
     """Test hello function with name in body."""
-    from function_app import hello
+    from function_app import hello_world
 
     # Create a mock request with name in body
     body_data = json.dumps({"name": "BodyUser"})
@@ -52,7 +52,7 @@ def test_hello_function_with_body():
     )
 
     # Call the function
-    response = hello(req)
+    response = hello_world(req)
 
     # Assert response
     assert response.status_code == 200
