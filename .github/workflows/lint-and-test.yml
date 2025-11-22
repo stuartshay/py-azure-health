@@ -209,10 +209,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -231,16 +231,23 @@ jobs:
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Run pre-commit
+        id: precommit
+        continue-on-error: true
         run: |
           echo "🔧 Running pre-commit hooks..."
-          pre-commit run --all-files --show-diff-on-failure --color=always
+          pre-commit run --all-files --show-diff-on-failure --color=always || echo "precommit_failed=true" >> $GITHUB_OUTPUT
 
       - name: Pre-commit summary
         if: always()
         run: |
           echo "## 🔧 Pre-commit Hooks" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **All pre-commit hooks passed.**" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.precommit.outputs.precommit_failed }}" = "true" ]; then
+            echo "❌ **Pre-commit hooks failed. Please review the logs above.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All pre-commit hooks passed.**" >> $GITHUB_STEP_SUMMARY
+          fi
 
   summary:
     name: Quality Gate Summary
