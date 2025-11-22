@@ -22,7 +22,7 @@ var appInsightsName = 'appi-${appName}-${environment}'
 var logAnalyticsName = 'log-${appName}-${environment}'
 
 // Reference existing App Service Plan
-resource existingAppServicePlan 'Microsoft.Web/serverfarms@2022-03-01' existing = {
+resource existingAppServicePlan 'Microsoft.Web/serverfarms@2025-03-01' existing = {
   name: 'azurehealth-plan-dev'
   scope: resourceGroup()
 }
