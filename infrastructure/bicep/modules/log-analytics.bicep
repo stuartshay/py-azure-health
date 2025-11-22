@@ -10,7 +10,7 @@ param tags object
 @description('Retention in days')
 param retentionInDays int = 30
 
-resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-07-01' = {
   name: logAnalyticsName
   location: location
   tags: tags

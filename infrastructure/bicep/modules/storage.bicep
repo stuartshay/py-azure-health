@@ -7,7 +7,7 @@ param location string
 @description('Resource tags')
 param tags object
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   name: storageAccountName
   location: location
   tags: tags
@@ -38,7 +38,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
 }
 
 // Blob service
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2022-09-01' = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01' = {
   parent: storageAccount
   name: 'default'
   properties: {
