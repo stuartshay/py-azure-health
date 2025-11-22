@@ -49,24 +49,22 @@ jobs:
         run: |
           echo "📋 Listing py-azure-health resources..."
           echo ""
-          echo "Resources tagged with 'application=py-azure-health' in resource group ${{ env.AZURE_RESOURCE_GROUP }}:"
+          echo "Resources tagged with 'project=py-azure-health' in resource group ${{ env.AZURE_RESOURCE_GROUP }}:"
           echo ""
 
           az resource list \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --tag application=py-azure-health \
-            --query '[].{Name:name, Type:type, Location:location}' \
+            --query "[?tags.project=='py-azure-health'].{Name:name, Type:type, Location:location}" \
             --output table
 
       - name: Delete py-azure-health resources
         run: |
-          echo "🗑️ Deleting resources tagged with 'application=py-azure-health'..."
+          echo "🗑️ Deleting resources tagged with 'project=py-azure-health'..."
 
           # Get all resources with the py-azure-health tag
           RESOURCE_IDS=$(az resource list \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --tag application=py-azure-health \
-            --query '[].id' \
+            --query "[?tags.project=='py-azure-health'].id" \
             --output tsv)
 
           if [ -z "$RESOURCE_IDS" ]; then
@@ -119,11 +117,11 @@ jobs:
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Resource Group | ${{ env.AZURE_RESOURCE_GROUP }} (preserved) |" >> $GITHUB_STEP_SUMMARY
-          echo "| Filter | Resources tagged with \`application=py-azure-health\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Filter | Resources tagged with \`project=py-azure-health\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### What Was Deleted" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Only resources specifically tagged with \`application=py-azure-health\` were deleted:" >> $GITHUB_STEP_SUMMARY
+          echo "Only resources specifically tagged with \`project=py-azure-health\` were deleted:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Function App" >> $GITHUB_STEP_SUMMARY
           echo "- App Service Plan" >> $GITHUB_STEP_SUMMARY
