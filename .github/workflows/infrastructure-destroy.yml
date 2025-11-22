@@ -47,88 +47,92 @@ jobs:
       - name: List resources to be deleted
         id: list
         run: |
-          echo "📋 Listing deployment resources..."
-          az deployment group list \
+          echo "📋 Listing py-azure-health resources..."
+          echo ""
+          echo "Resources tagged with 'application=py-azure-health' in resource group ${{ env.AZURE_RESOURCE_GROUP }}:"
+          echo ""
+
+          az resource list \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query '[].name' \
+            --tag application=py-azure-health \
+            --query '[].{Name:name, Type:type, Location:location}' \
             --output table
 
-      - name: Delete deployment resources
+      - name: Delete py-azure-health resources
         run: |
-          echo "🗑️ Deleting Bicep deployment resources..."
+          echo "🗑️ Deleting resources tagged with 'application=py-azure-health'..."
 
-          # Get the latest deployment name
-          LATEST_DEPLOYMENT=$(az deployment group list \
+          # Get all resources with the py-azure-health tag
+          RESOURCE_IDS=$(az resource list \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query '[0].name' \
+            --tag application=py-azure-health \
+            --query '[].id' \
             --output tsv)
 
-          if [ -n "$LATEST_DEPLOYMENT" ]; then
-            echo "Deleting deployment: $LATEST_DEPLOYMENT"
+          if [ -z "$RESOURCE_IDS" ]; then
+            echo "⚠️ No py-azure-health resources found to delete"
+            exit 0
+          fi
 
-            # Delete resources created by the deployment
-            # Note: Bicep doesn't support automatic deletion, so we need to delete resources manually
-            # Get Function App name
-            FUNCTION_APP=$(az deployment group show \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --name $LATEST_DEPLOYMENT \
-              --query 'properties.outputs.functionAppName.value' \
-              --output tsv 2>/dev/null || echo "")
+          # Count resources
+          RESOURCE_COUNT=$(echo "$RESOURCE_IDS" | wc -l)
+          echo "Found $RESOURCE_COUNT resources to delete"
+          echo ""
 
-            STORAGE_ACCOUNT=$(az deployment group show \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --name $LATEST_DEPLOYMENT \
-              --query 'properties.outputs.storageAccountName.value' \
-              --output tsv 2>/dev/null || echo "")
+          # Delete each resource
+          DELETED_COUNT=0
+          FAILED_COUNT=0
 
-            APP_INSIGHTS=$(az deployment group show \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --name $LATEST_DEPLOYMENT \
-              --query 'properties.outputs.appInsightsName.value' \
-              --output tsv 2>/dev/null || echo "")
+          while IFS= read -r RESOURCE_ID; do
+            if [ -n "$RESOURCE_ID" ]; then
+              RESOURCE_NAME=$(basename "$RESOURCE_ID")
+              echo "Deleting: $RESOURCE_NAME"
 
-            LOG_ANALYTICS=$(az deployment group show \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --name $LATEST_DEPLOYMENT \
-              --query 'properties.outputs.logAnalyticsWorkspaceName.value' \
-              --output tsv 2>/dev/null || echo "")
-
-            # Delete resources in order
-            if [ -n "$FUNCTION_APP" ]; then
-              echo "Deleting Function App: $FUNCTION_APP"
-              az functionapp delete --name "$FUNCTION_APP" --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || true
+              if az resource delete --ids "$RESOURCE_ID" 2>/dev/null; then
+                echo "  ✅ Deleted successfully"
+                ((DELETED_COUNT++))
+              else
+                echo "  ⚠️ Failed to delete (may require manual cleanup)"
+                ((FAILED_COUNT++))
+              fi
+              echo ""
             fi
+          done <<< "$RESOURCE_IDS"
 
-            if [ -n "$STORAGE_ACCOUNT" ]; then
-              echo "Deleting Storage Account: $STORAGE_ACCOUNT"
-              az storage account delete --name "$STORAGE_ACCOUNT" --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --yes || true
-            fi
+          echo "================================================"
+          echo "Summary: $DELETED_COUNT deleted, $FAILED_COUNT failed"
+          echo "================================================"
 
-            if [ -n "$APP_INSIGHTS" ]; then
-              echo "Deleting Application Insights: $APP_INSIGHTS"
-              az monitor app-insights component delete --app "$APP_INSIGHTS" --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || true
-            fi
+          if [ $DELETED_COUNT -gt 0 ]; then
+            echo "✅ Successfully deleted $DELETED_COUNT py-azure-health resources"
+          fi
 
-            if [ -n "$LOG_ANALYTICS" ]; then
-              echo "Deleting Log Analytics Workspace: $LOG_ANALYTICS"
-              az monitor log-analytics workspace delete --workspace-name "$LOG_ANALYTICS" --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --yes || true
-            fi
-
-            echo "✅ Resources deleted successfully"
-          else
-            echo "No deployments found to delete"
+          if [ $FAILED_COUNT -gt 0 ]; then
+            echo "⚠️ Some resources failed to delete and may require manual cleanup"
           fi
 
       - name: Display summary
         run: |
           echo "## 🗑️ Destruction Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Resource Group | ${{ env.AZURE_RESOURCE_GROUP }} (preserved) |" >> $GITHUB_STEP_SUMMARY
-          echo "| Action | Deployment resources deleted |" >> $GITHUB_STEP_SUMMARY
+          echo "| Filter | Resources tagged with \`application=py-azure-health\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Deployment resources have been destroyed." >> $GITHUB_STEP_SUMMARY
+          echo "### What Was Deleted" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** The resource group was preserved and can be reused for future deployments." >> $GITHUB_STEP_SUMMARY
+          echo "Only resources specifically tagged with \`application=py-azure-health\` were deleted:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Function App" >> $GITHUB_STEP_SUMMARY
+          echo "- App Service Plan" >> $GITHUB_STEP_SUMMARY
+          echo "- Storage Account" >> $GITHUB_STEP_SUMMARY
+          echo "- Application Insights" >> $GITHUB_STEP_SUMMARY
+          echo "- Log Analytics Workspace" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### What Was Preserved" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ The resource group and all other resources (used by other projects) remain intact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Shared infrastructure used by other applications was not affected." >> $GITHUB_STEP_SUMMARY
