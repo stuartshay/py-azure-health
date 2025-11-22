@@ -84,27 +84,40 @@ jobs:
         if: success() || failure()
         run: |
           if [ -f whatif-output.txt ]; then
-            # Count changes - ensure we get numeric values
-            CREATE_COUNT=$(grep -c "Create" whatif-output.txt 2>/dev/null || echo 0)
-            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt 2>/dev/null || echo 0)
-            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt 2>/dev/null || echo 0)
-            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt 2>/dev/null || echo 0)
+            # Count changes - ensure we get numeric values and strip whitespace
+            CREATE_COUNT=$(grep -c "Create" whatif-output.txt 2>/dev/null || echo "0")
+            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt 2>/dev/null || echo "0")
+            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt 2>/dev/null || echo "0")
+            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt 2>/dev/null || echo "0")
 
-            # Ensure values are integers
+            # Strip whitespace and ensure we have clean integers
+            CREATE_COUNT=$(echo "${CREATE_COUNT}" | tr -d '[:space:]')
+            MODIFY_COUNT=$(echo "${MODIFY_COUNT}" | tr -d '[:space:]')
+            DELETE_COUNT=$(echo "${DELETE_COUNT}" | tr -d '[:space:]')
+            IGNORE_COUNT=$(echo "${IGNORE_COUNT}" | tr -d '[:space:]')
+
+            # Default to 0 if empty
             CREATE_COUNT=${CREATE_COUNT:-0}
             MODIFY_COUNT=${MODIFY_COUNT:-0}
             DELETE_COUNT=${DELETE_COUNT:-0}
             IGNORE_COUNT=${IGNORE_COUNT:-0}
 
-            echo "create_count=${CREATE_COUNT}" >> $GITHUB_OUTPUT
-            echo "modify_count=${MODIFY_COUNT}" >> $GITHUB_OUTPUT
-            echo "delete_count=${DELETE_COUNT}" >> $GITHUB_OUTPUT
-            echo "ignore_count=${IGNORE_COUNT}" >> $GITHUB_OUTPUT
+            echo "create_count=${CREATE_COUNT}" >> "$GITHUB_OUTPUT"
+            echo "modify_count=${MODIFY_COUNT}" >> "$GITHUB_OUTPUT"
+            echo "delete_count=${DELETE_COUNT}" >> "$GITHUB_OUTPUT"
+            echo "ignore_count=${IGNORE_COUNT}" >> "$GITHUB_OUTPUT"
 
             TOTAL_CHANGES=$((CREATE_COUNT + MODIFY_COUNT + DELETE_COUNT))
-            echo "total_changes=${TOTAL_CHANGES}" >> $GITHUB_OUTPUT
+            echo "total_changes=${TOTAL_CHANGES}" >> "$GITHUB_OUTPUT"
 
             echo "📊 Changes detected: ${CREATE_COUNT} create, ${MODIFY_COUNT} modify, ${DELETE_COUNT} delete"
+          else
+            # File doesn't exist, set defaults
+            echo "create_count=0" >> "$GITHUB_OUTPUT"
+            echo "modify_count=0" >> "$GITHUB_OUTPUT"
+            echo "delete_count=0" >> "$GITHUB_OUTPUT"
+            echo "ignore_count=0" >> "$GITHUB_OUTPUT"
+            echo "total_changes=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create PR comment
