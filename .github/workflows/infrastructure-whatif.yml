@@ -1,0 +1,216 @@
+name: Infrastructure What-If
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/bicep/**'
+      - '.github/workflows/infrastructure-*.yml'
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to preview'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+
+jobs:
+  what-if:
+    name: Preview Infrastructure Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          else
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run What-If analysis
+        id: whatif
+        run: |
+          echo "🔍 Running What-If analysis for ${{ steps.env.outputs.environment }} environment..."
+
+          # Run what-if and capture output
+          WHATIF_OUTPUT=$(az deployment group what-if \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infrastructure/bicep/main.bicep \
+            --parameters environment=${{ steps.env.outputs.environment }} \
+            --result-format FullResourcePayloads \
+            2>&1 || true)
+
+          echo "$WHATIF_OUTPUT"
+
+          # Save output to file for PR comment
+          echo "$WHATIF_OUTPUT" > whatif-output.txt
+
+          # Check for errors
+          if echo "$WHATIF_OUTPUT" | grep -qi "error"; then
+            echo "has_errors=true" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "has_errors=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse What-If results
+        id: parse
+        if: success() || failure()
+        run: |
+          if [ -f whatif-output.txt ]; then
+            # Count changes
+            CREATE_COUNT=$(grep -c "Create" whatif-output.txt || echo "0")
+            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt || echo "0")
+            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt || echo "0")
+            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt || echo "0")
+
+            echo "create_count=$CREATE_COUNT" >> $GITHUB_OUTPUT
+            echo "modify_count=$MODIFY_COUNT" >> $GITHUB_OUTPUT
+            echo "delete_count=$DELETE_COUNT" >> $GITHUB_OUTPUT
+            echo "ignore_count=$IGNORE_COUNT" >> $GITHUB_OUTPUT
+
+            TOTAL_CHANGES=$((CREATE_COUNT + MODIFY_COUNT + DELETE_COUNT))
+            echo "total_changes=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
+
+            echo "📊 Changes detected: $CREATE_COUNT create, $MODIFY_COUNT modify, $DELETE_COUNT delete"
+          fi
+
+      - name: Create PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const whatifOutput = fs.readFileSync('whatif-output.txt', 'utf8');
+
+            const createCount = '${{ steps.parse.outputs.create_count }}';
+            const modifyCount = '${{ steps.parse.outputs.modify_count }}';
+            const deleteCount = '${{ steps.parse.outputs.delete_count }}';
+            const totalChanges = '${{ steps.parse.outputs.total_changes }}';
+            const hasErrors = '${{ steps.whatif.outputs.has_errors }}';
+
+            let icon = '✅';
+            let status = 'No infrastructure changes detected';
+
+            if (hasErrors === 'true') {
+              icon = '❌';
+              status = 'What-If analysis failed with errors';
+            } else if (totalChanges > 0) {
+              icon = '⚠️';
+              status = `${totalChanges} infrastructure change(s) detected`;
+            }
+
+            const comment = `## ${icon} Infrastructure What-If Analysis
+
+            **Environment:** dev
+            **Status:** ${status}
+
+            ### Summary
+            | Action | Count |
+            | --- | --- |
+            | ➕ Create | ${createCount} |
+            | 🔄 Modify | ${modifyCount} |
+            | ❌ Delete | ${deleteCount} |
+            | ⏭️ Ignore | ${{ steps.parse.outputs.ignore_count }} |
+
+            <details>
+            <summary>View detailed changes</summary>
+
+            \`\`\`
+            ${whatifOutput.substring(0, 60000)}
+            \`\`\`
+
+            </details>
+
+            ${hasErrors === 'true' ? '⚠️ **Please review the errors above before merging.**' : ''}
+            ${totalChanges > 0 ? '⚠️ **Review changes carefully before deploying to production.**' : ''}
+
+            ---
+            *Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Infrastructure What-If Analysis')
+            );
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+      - name: Display summary
+        if: success() || failure()
+        run: |
+          echo "## 🔍 What-If Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ steps.env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Resources to Create | ${{ steps.parse.outputs.create_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Resources to Modify | ${{ steps.parse.outputs.modify_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Resources to Delete | ${{ steps.parse.outputs.delete_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Changes | ${{ steps.parse.outputs.total_changes }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.whatif.outputs.has_errors }}" = "true" ]; then
+            echo "❌ **What-If analysis completed with errors. Review the logs above.**" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.parse.outputs.total_changes }}" -gt "0" ]; then
+            echo "⚠️ **Infrastructure changes detected. Review carefully before deployment.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No infrastructure changes detected.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload What-If output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whatif-output-${{ github.run_id }}
+          path: whatif-output.txt
+          retention-days: 30

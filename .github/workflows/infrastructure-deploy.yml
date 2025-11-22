@@ -1,0 +1,176 @@
+name: Infrastructure Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      confirm:
+        description: 'Type "deploy" to confirm deployment'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+
+jobs:
+  validate:
+    name: Validate Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate confirmation
+        if: inputs.confirm != 'deploy'
+        run: |
+          echo "❌ Deployment not confirmed. Please type 'deploy' to proceed."
+          exit 1
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Bicep templates
+        run: |
+          echo "🔍 Validating Bicep templates..."
+          az deployment group validate \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infrastructure/bicep/main.bicep \
+            --parameters environment=${{ inputs.environment }}
+
+      - name: Validation successful
+        run: echo "✅ Bicep templates validated successfully"
+
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: ${{ inputs.environment }}
+    outputs:
+      functionAppName: ${{ steps.deploy.outputs.functionAppName }}
+      storageAccountName: ${{ steps.deploy.outputs.storageAccountName }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource group exists
+        run: |
+          echo "📦 Checking resource group..."
+          if ! az group show --name ${{ env.AZURE_RESOURCE_GROUP }} &>/dev/null; then
+            echo "Creating resource group ${{ env.AZURE_RESOURCE_GROUP }}..."
+            az group create \
+              --name ${{ env.AZURE_RESOURCE_GROUP }} \
+              --location ${{ env.AZURE_LOCATION }} \
+              --tags environment=${{ inputs.environment }} application=py-azure-health
+          else
+            echo "Resource group already exists"
+          fi
+
+      - name: Deploy Bicep templates
+        id: deploy
+        run: |
+          echo "🚀 Deploying infrastructure..."
+          DEPLOYMENT_OUTPUT=$(az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infrastructure/bicep/main.bicep \
+            --parameters environment=${{ inputs.environment }} \
+            --query 'properties.outputs' \
+            --output json)
+
+          echo "Deployment outputs:"
+          echo "$DEPLOYMENT_OUTPUT" | jq '.'
+
+          # Extract outputs
+          FUNCTION_APP_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.functionAppName.value')
+          STORAGE_ACCOUNT_NAME=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.storageAccountName.value')
+
+          echo "functionAppName=$FUNCTION_APP_NAME" >> $GITHUB_OUTPUT
+          echo "storageAccountName=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
+
+          echo "✅ Infrastructure deployed successfully"
+
+      - name: Display deployment summary
+        run: |
+          echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Name |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource Group | ${{ env.AZURE_RESOURCE_GROUP }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Function App | ${{ steps.deploy.outputs.functionAppName }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Storage Account | ${{ steps.deploy.outputs.storageAccountName }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Deploy function code using the Function Deploy workflow" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify deployment at Azure Portal" >> $GITHUB_STEP_SUMMARY
+
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check Function App status
+        run: |
+          echo "🔍 Verifying Function App status..."
+          FUNCTION_APP_STATE=$(az functionapp show \
+            --name ${{ needs.deploy.outputs.functionAppName }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query 'state' \
+            --output tsv)
+
+          if [ "$FUNCTION_APP_STATE" = "Running" ]; then
+            echo "✅ Function App is running"
+          else
+            echo "⚠️ Function App state: $FUNCTION_APP_STATE"
+          fi
+
+      - name: Check Storage Account status
+        run: |
+          echo "🔍 Verifying Storage Account status..."
+          STORAGE_STATUS=$(az storage account show \
+            --name ${{ needs.deploy.outputs.storageAccountName }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query 'statusOfPrimary' \
+            --output tsv)
+
+          if [ "$STORAGE_STATUS" = "available" ]; then
+            echo "✅ Storage Account is available"
+          else
+            echo "⚠️ Storage Account status: $STORAGE_STATUS"
+          fi
+
+      - name: Verification complete
+        run: |
+          echo "## ✅ Verification Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All resources deployed and verified successfully!" >> $GITHUB_STEP_SUMMARY

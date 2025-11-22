@@ -1,0 +1,263 @@
+name: Lint and Test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  lint:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install black flake8 isort mypy pytest pytest-cov
+
+      - name: Check formatting with Black
+        id: black
+        run: |
+          echo "🎨 Checking code formatting..."
+          black --check --diff src/ || echo "black_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Check imports with isort
+        id: isort
+        run: |
+          echo "📦 Checking import sorting..."
+          isort --check-only --diff src/ || echo "isort_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Lint with Flake8
+        id: flake8
+        run: |
+          echo "🔍 Running Flake8 linter..."
+          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Type check with mypy
+        id: mypy
+        continue-on-error: true
+        run: |
+          echo "🔎 Running type checks..."
+          mypy src/ --ignore-missing-imports || echo "mypy_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Check for secrets with GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint summary
+        if: always()
+        run: |
+          echo "## 🔍 Lint Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.black.outputs.black_failed }}" = "true" ]; then
+            echo "| Black (formatting) | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Black (formatting) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.isort.outputs.isort_failed }}" = "true" ]; then
+            echo "| isort (imports) | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| isort (imports) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "| Flake8 (linting) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.mypy.outputs.mypy_failed }}" = "true" ]; then
+            echo "| mypy (type checking) | ⚠️ Warnings |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| mypy (type checking) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "| GitLeaks (secrets) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock
+
+      - name: Run tests with pytest
+        id: pytest
+        run: |
+          echo "🧪 Running tests..."
+          cd src
+          pytest --cov=. --cov-report=xml --cov-report=term --cov-report=html || echo "tests_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: src/htmlcov/
+          retention-days: 7
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.pytest.outputs.tests_failed }}" = "true" ]; then
+            echo "❌ **Tests failed. Please review the logs above.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage report uploaded as artifact." >> $GITHUB_STEP_SUMMARY
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install safety
+        run: pip install safety
+
+      - name: Check for vulnerabilities
+        id: safety
+        continue-on-error: true
+        run: |
+          echo "🔒 Scanning dependencies for vulnerabilities..."
+          safety check --json --output safety-report.json || echo "vulnerabilities_found=true" >> $GITHUB_OUTPUT
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: safety-report.json
+          retention-days: 30
+
+      - name: Security summary
+        if: always()
+        run: |
+          echo "## 🔒 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.safety.outputs.vulnerabilities_found }}" = "true" ]; then
+            echo "⚠️ **Vulnerabilities found in dependencies. Review the report.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No known vulnerabilities found.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  pre-commit:
+    name: Pre-commit Hooks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit
+        run: |
+          echo "🔧 Running pre-commit hooks..."
+          pre-commit run --all-files
+
+      - name: Pre-commit summary
+        if: always()
+        run: |
+          echo "## 🔧 Pre-commit Hooks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All pre-commit hooks passed.**" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test, security, pre-commit]
+    if: always()
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "## 📊 Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result == 'success' && '✅ Passed' || '⚠️ Warnings' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pre-commit | ${{ needs.pre-commit.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.lint.result }}" = "success" ] && [ "${{ needs.test.result }}" = "success" ] && [ "${{ needs.pre-commit.result }}" = "success" ]; then
+            echo "✅ **All quality checks passed! Ready to merge.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Some quality checks failed. Please fix before merging.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

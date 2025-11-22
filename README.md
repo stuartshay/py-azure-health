@@ -122,33 +122,90 @@ def timer_function(myTimer: func.TimerRequest) -> None:
 
 ## Deployment
 
-### Deploy Function Code
+The project uses **GitHub Actions** for automated CI/CD with secure OIDC authentication (no secrets stored!).
+
+### Initial Setup (One-Time)
+
+Configure GitHub Actions to deploy to Azure:
 
 ```bash
-# Deploy to Azure
-func azure functionapp publish <function-app-name>
-
-# Or use Azure CLI
-az functionapp deployment source config-zip \
-  -g <resource-group> \
-  -n <function-app-name> \
-  --src <zip-file>
+cd infrastructure/scripts
+chmod +x *.sh
+./setup-github-actions.sh
 ```
 
-### Infrastructure as Code
+This creates Azure AD application, configures federated credentials, and sets GitHub secrets automatically.
 
-Use Bicep templates to deploy infrastructure:
+**Verify setup:**
+```bash
+./validate-github-setup.sh
+```
+
+### Deployment Options
+
+#### Option 1: GitHub Actions (Recommended)
+
+**Infrastructure Deployment:**
+1. Go to **Actions** tab → **Infrastructure Deploy**
+2. Select environment (dev/staging/prod)
+3. Type "deploy" to confirm
+4. Monitor deployment progress
+
+**Function Deployment:**
+- **Automatic:** Push to `main` or `develop` with changes in `src/**`
+- **Manual:** Actions tab → **Function Deploy** → Run workflow
+
+**Preview Changes (What-If):**
+- Pull requests automatically show infrastructure changes
+- Manual: Actions tab → **Infrastructure What-If**
+
+**Available Workflows:**
+- ✅ **infrastructure-deploy.yml** - Deploy Azure resources
+- ✅ **infrastructure-destroy.yml** - Remove resources
+- ✅ **infrastructure-whatif.yml** - Preview changes
+- ✅ **function-deploy.yml** - Deploy function code
+- ✅ **lint-and-test.yml** - Quality checks
+
+#### Option 2: Local Scripts
 
 ```bash
-# Create resource group
-az group create --name rg-health-dev --location eastus
+# Deploy infrastructure
+cd infrastructure/scripts
+./deploy-bicep.sh dev deploy
 
+# Preview changes
+./deploy-bicep.sh dev what-if
+
+# Validate templates
+./deploy-bicep.sh dev validate
+
+# View existing resources
+./get-existing-resources.sh
+```
+
+#### Option 3: Manual Deployment
+
+```bash
 # Deploy infrastructure
 az deployment group create \
-  --resource-group rg-health-dev \
-  --template-file infrastructure/main.bicep \
+  --resource-group rg-azure-health-dev \
+  --template-file infrastructure/bicep/main.bicep \
   --parameters environment=dev
+
+# Deploy function code
+func azure functionapp publish <function-app-name>
 ```
+
+### Infrastructure Components
+
+**Deployed Resources:**
+- Function App (Python 3.11)
+- Storage Account
+- Application Insights
+- Log Analytics Workspace
+- Uses existing App Service Plan: `azurehealth-plan-dev`
+
+**See detailed documentation:** [infrastructure/README.md](infrastructure/README.md)
 
 ## Testing
 
