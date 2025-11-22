@@ -16,121 +16,14 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-
 jobs:
   destroy:
-    name: Destroy Infrastructure
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Display warning
-        run: |
-          echo "## ⚠️ WARNING: Destructive Operation" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "You are about to destroy infrastructure in the **${{ inputs.environment }}** environment." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- This will delete resources created by Bicep deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- The resource group will be preserved" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-      - name: List resources to be deleted
-        id: list
-        run: |
-          echo "📋 Listing py-azure-health resources..."
-          echo ""
-          echo "Resources tagged with 'project=py-azure-health' in resource group ${{ env.AZURE_RESOURCE_GROUP }}:"
-          echo ""
-
-          az resource list \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[?tags.project=='py-azure-health'].{Name:name, Type:type, Location:location}" \
-            --output table
-
-      - name: Delete py-azure-health resources
-        run: |
-          echo "🗑️ Deleting resources tagged with 'project=py-azure-health'..."
-
-          # Get all resources with the py-azure-health tag
-          RESOURCE_IDS=$(az resource list \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[?tags.project=='py-azure-health'].id" \
-            --output tsv)
-
-          if [ -z "$RESOURCE_IDS" ]; then
-            echo "⚠️ No py-azure-health resources found to delete"
-            exit 0
-          fi
-
-          # Count resources
-          RESOURCE_COUNT=$(echo "$RESOURCE_IDS" | wc -l)
-          echo "Found $RESOURCE_COUNT resources to delete"
-          echo ""
-
-          # Delete each resource
-          DELETED_COUNT=0
-          FAILED_COUNT=0
-
-          while IFS= read -r RESOURCE_ID; do
-            if [ -n "$RESOURCE_ID" ]; then
-              RESOURCE_NAME=$(basename "$RESOURCE_ID")
-              echo "Deleting: $RESOURCE_NAME"
-
-              if az resource delete --ids "$RESOURCE_ID" 2>/dev/null; then
-                echo "  ✅ Deleted successfully"
-                ((DELETED_COUNT++))
-              else
-                echo "  ⚠️ Failed to delete (may require manual cleanup)"
-                ((FAILED_COUNT++))
-              fi
-              echo ""
-            fi
-          done <<< "$RESOURCE_IDS"
-
-          echo "================================================"
-          echo "Summary: $DELETED_COUNT deleted, $FAILED_COUNT failed"
-          echo "================================================"
-
-          if [ $DELETED_COUNT -gt 0 ]; then
-            echo "✅ Successfully deleted $DELETED_COUNT py-azure-health resources"
-          fi
-
-          if [ $FAILED_COUNT -gt 0 ]; then
-            echo "⚠️ Some resources failed to delete and may require manual cleanup"
-          fi
-
-      - name: Display summary
-        run: |
-          echo "## 🗑️ Destruction Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Resource Group | ${{ env.AZURE_RESOURCE_GROUP }} (preserved) |" >> $GITHUB_STEP_SUMMARY
-          echo "| Filter | Resources tagged with \`project=py-azure-health\` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### What Was Deleted" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Only resources specifically tagged with \`project=py-azure-health\` were deleted:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Function App" >> $GITHUB_STEP_SUMMARY
-          echo "- App Service Plan" >> $GITHUB_STEP_SUMMARY
-          echo "- Storage Account" >> $GITHUB_STEP_SUMMARY
-          echo "- Application Insights" >> $GITHUB_STEP_SUMMARY
-          echo "- Log Analytics Workspace" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### What Was Preserved" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ The resource group and all other resources (used by other projects) remain intact." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Shared infrastructure used by other applications was not affected." >> $GITHUB_STEP_SUMMARY
+    uses: stuartshay/shared-azure-health/.github/workflows/destroy-infrastructure.yml@main
+    with:
+      project-name: py-azure-health
+      environment: ${{ inputs.environment }}
+      resource-group: rg-azure-health-${{ inputs.environment }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
