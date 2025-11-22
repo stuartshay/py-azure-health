@@ -86,17 +86,18 @@ jobs:
         run: |
           echo "🔒 Checking Azure Policy compliance for resource group..."
 
-          # Get policy compliance state
-          POLICY_OUTPUT=$(az policy state list \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[].{resourceId:resourceId, policyDefinition:policyDefinitionName, complianceState:complianceState, policyAssignment:policyAssignmentName}" \
-            --output json 2>&1 || echo "[]")
+          # Source the policy query utilities
+          source scripts/ci/policy-query.sh
 
-          echo "$POLICY_OUTPUT" > policy-compliance.json
+          # Generate comprehensive policy report
+          generate_policy_report "${{ env.AZURE_RESOURCE_GROUP }}" > policy-report.md
+
+          # Get policy assignments with compliance for counting
+          POLICY_DATA=$(get_policy_assignments_with_compliance "${{ env.AZURE_RESOURCE_GROUP }}")
 
           # Count compliance states
-          NON_COMPLIANT=$(echo "$POLICY_OUTPUT" | jq '[.[] | select(.complianceState=="NonCompliant")] | length' 2>/dev/null || echo "0")
-          COMPLIANT=$(echo "$POLICY_OUTPUT" | jq '[.[] | select(.complianceState=="Compliant")] | length' 2>/dev/null || echo "0")
+          NON_COMPLIANT=$(echo "$POLICY_DATA" | jq '[.[] | select(.complianceState=="NonCompliant")] | length' 2>/dev/null || echo "0")
+          COMPLIANT=$(echo "$POLICY_DATA" | jq '[.[] | select(.complianceState=="Compliant")] | length' 2>/dev/null || echo "0")
 
           # Strip whitespace
           NON_COMPLIANT=$(echo "${NON_COMPLIANT}" | tr -d '[:space:]')
@@ -109,22 +110,15 @@ jobs:
           echo "non_compliant=${NON_COMPLIANT}" >> "$GITHUB_OUTPUT"
           echo "compliant=${COMPLIANT}" >> "$GITHUB_OUTPUT"
 
+          # Save raw policy data for artifacts
+          echo "$POLICY_DATA" > policy-compliance.json
+
           if [ "$NON_COMPLIANT" -gt "0" ]; then
             echo "policy_issues=true" >> "$GITHUB_OUTPUT"
-            echo "⚠️ Found ${NON_COMPLIANT} non-compliant resources"
+            echo "⚠️ Found ${NON_COMPLIANT} non-compliant policy assignments"
           else
             echo "policy_issues=false" >> "$GITHUB_OUTPUT"
-            echo "✅ All resources are policy compliant"
-          fi
-
-          # Generate detailed policy report
-          echo "## Policy Compliance Details" > policy-report.md
-          echo "" >> policy-report.md
-          if [ "$NON_COMPLIANT" -gt "0" ]; then
-            echo "### ❌ Non-Compliant Resources" >> policy-report.md
-            echo "\`\`\`json" >> policy-report.md
-            echo "$POLICY_OUTPUT" | jq '[.[] | select(.complianceState=="NonCompliant")]' >> policy-report.md
-            echo "\`\`\`" >> policy-report.md
+            echo "✅ All policy assignments are compliant"
           fi
 
       - name: Parse What-If results
