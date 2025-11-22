@@ -16,7 +16,7 @@ permissions:
   pull-requests: write
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.14'
 
 jobs:
   lint:
@@ -216,6 +216,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az bicep install
+
       - name: Install pre-commit
         run: pip install pre-commit
 
@@ -228,7 +233,7 @@ jobs:
       - name: Run pre-commit
         run: |
           echo "🔧 Running pre-commit hooks..."
-          pre-commit run --all-files
+          pre-commit run --all-files --show-diff-on-failure --color=always
 
       - name: Pre-commit summary
         if: always()

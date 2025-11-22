@@ -45,7 +45,10 @@ def test_hello_function_with_body():
     # Create a mock request with name in body
     body_data = json.dumps({"name": "BodyUser"})
     req = func.HttpRequest(
-        method="POST", body=body_data.encode("utf-8"), url="/api/hello", params={}
+        method="POST",
+        body=body_data.encode("utf-8"),
+        url="/api/hello",
+        params={},
     )
 
     # Call the function
