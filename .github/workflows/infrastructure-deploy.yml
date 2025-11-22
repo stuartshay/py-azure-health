@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate confirmation
         if: inputs.confirm != 'deploy'
@@ -67,7 +67,7 @@ jobs:
       storageAccountName: ${{ steps.deploy.outputs.storageAccountName }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Azure login
         uses: azure/login@v2
