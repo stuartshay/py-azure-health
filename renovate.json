@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    ":semanticCommits",
+    ":prConcurrentLimitNone",
+    ":prHourlyLimitNone"
+  ],
+  "packageRules": [
+    {
+      "groupName": "Azure SDK packages",
+      "matchPackagePatterns": ["^azure-", "^@azure/"]
+    },
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"]
+    },
+    {
+      "groupName": "Python dev dependencies",
+      "matchDepTypes": ["dev"],
+      "matchManagers": ["pip_requirements"]
+    },
+    {
+      "groupName": "Bicep resource API versions",
+      "matchManagers": ["bicep"]
+    }
+  ],
+  "pip_requirements": {
+    "fileMatch": ["(^|/)requirements\\.txt$"]
+  },
+  "bicep": {
+    "enabled": true
+  }
+}
