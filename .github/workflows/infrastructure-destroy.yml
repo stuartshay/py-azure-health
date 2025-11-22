@@ -19,6 +19,9 @@ permissions:
 jobs:
   destroy:
     uses: stuartshay/shared-azure-health/.github/workflows/destroy-infrastructure.yml@master
+    permissions:
+      id-token: write
+      contents: read
     with:
       project-name: py-azure-health
       environment: ${{ inputs.environment }}
