@@ -84,21 +84,27 @@ jobs:
         if: success() || failure()
         run: |
           if [ -f whatif-output.txt ]; then
-            # Count changes
-            CREATE_COUNT=$(grep -c "Create" whatif-output.txt || echo "0")
-            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt || echo "0")
-            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt || echo "0")
-            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt || echo "0")
+            # Count changes - ensure we get numeric values
+            CREATE_COUNT=$(grep -c "Create" whatif-output.txt 2>/dev/null || echo 0)
+            MODIFY_COUNT=$(grep -c "Modify" whatif-output.txt 2>/dev/null || echo 0)
+            DELETE_COUNT=$(grep -c "Delete" whatif-output.txt 2>/dev/null || echo 0)
+            IGNORE_COUNT=$(grep -c "Ignore" whatif-output.txt 2>/dev/null || echo 0)
 
-            echo "create_count=$CREATE_COUNT" >> $GITHUB_OUTPUT
-            echo "modify_count=$MODIFY_COUNT" >> $GITHUB_OUTPUT
-            echo "delete_count=$DELETE_COUNT" >> $GITHUB_OUTPUT
-            echo "ignore_count=$IGNORE_COUNT" >> $GITHUB_OUTPUT
+            # Ensure values are integers
+            CREATE_COUNT=${CREATE_COUNT:-0}
+            MODIFY_COUNT=${MODIFY_COUNT:-0}
+            DELETE_COUNT=${DELETE_COUNT:-0}
+            IGNORE_COUNT=${IGNORE_COUNT:-0}
+
+            echo "create_count=${CREATE_COUNT}" >> $GITHUB_OUTPUT
+            echo "modify_count=${MODIFY_COUNT}" >> $GITHUB_OUTPUT
+            echo "delete_count=${DELETE_COUNT}" >> $GITHUB_OUTPUT
+            echo "ignore_count=${IGNORE_COUNT}" >> $GITHUB_OUTPUT
 
             TOTAL_CHANGES=$((CREATE_COUNT + MODIFY_COUNT + DELETE_COUNT))
-            echo "total_changes=$TOTAL_CHANGES" >> $GITHUB_OUTPUT
+            echo "total_changes=${TOTAL_CHANGES}" >> $GITHUB_OUTPUT
 
-            echo "📊 Changes detected: $CREATE_COUNT create, $MODIFY_COUNT modify, $DELETE_COUNT delete"
+            echo "📊 Changes detected: ${CREATE_COUNT} create, ${MODIFY_COUNT} modify, ${DELETE_COUNT} delete"
           fi
 
       - name: Create PR comment
