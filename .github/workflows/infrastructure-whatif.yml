@@ -195,14 +195,22 @@ jobs:
             let policySection = '';
             if (fs.existsSync('policy-report.md')) {
               const policyReport = fs.readFileSync('policy-report.md', 'utf8');
+              const totalPolicies = parseInt(compliant || '0') + parseInt(nonCompliant || '0');
+
               policySection = `
-            ### 🔒 Policy Compliance
+            ### 🔒 Policy Compliance Preview
+
+            This preview shows current policy assignments and potential compliance issues.
+
+            **Dev Environment**
+
             | Status | Count |
             | --- | --- |
             | ✅ Compliant | ${compliant} |
             | ❌ Non-Compliant | ${nonCompliant} |
+            | 📋 Total Assignments | ${totalPolicies} |
 
-            ${policyIssues === 'true' ? policyReport : '✅ All resources are policy compliant'}
+            ${policyReport}
             `;
             }
 
