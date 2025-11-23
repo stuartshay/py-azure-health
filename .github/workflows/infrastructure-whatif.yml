@@ -86,8 +86,9 @@ jobs:
         run: |
           echo "🔒 Checking Azure Policy compliance for resource group..."
 
-          # Source the policy query utilities
-          source scripts/ci/policy-query.sh
+          # Download shared policy query utilities
+          curl -sSL https://raw.githubusercontent.com/stuartshay/shared-azure-health/master/scripts/policy-query.sh -o /tmp/policy-query.sh
+          source /tmp/policy-query.sh
 
           # Generate comprehensive policy report
           generate_policy_report "${{ env.AZURE_RESOURCE_GROUP }}" > policy-report.md
